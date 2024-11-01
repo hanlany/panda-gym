@@ -67,6 +67,18 @@ class PyBullet:
         """Step the simulation."""
         for _ in range(self.n_substeps):
             self.physics_client.stepSimulation()
+            
+    def is_collided(self) -> bool:
+        return len(self.physics_client.getContactPoints()) > 0
+    
+    def get_collision_distance(self, body1: str, body2: str) -> float:
+        closest_points = self.physics_client.getClosestPoints(self._bodies_idx[body1], self._bodies_idx[body2], 0.1)
+        if len(closest_points) == 0:
+            return 0.1
+        min_distance = 1000
+        for point in closest_points:
+            min_distance = min(min_distance, point[8])
+        return np.round(min_distance, 6)
 
     def close(self) -> None:
         """Close the simulation."""
@@ -639,7 +651,75 @@ class PyBullet:
             lateral_friction=lateral_friction,
             spinning_friction=spinning_friction,
         )
-
+    
+    def create_shelve(
+        self,
+        length: float,
+        width: float,
+        height: float,
+        body_name: str = "shelve",
+        layers: int = 3,
+        x_offset: float = 0.0,
+        lateral_friction: Optional[float] = None,
+        spinning_friction: Optional[float] = None,
+    ) -> None:
+        """ Create a fixed shelve. Bottom is z=0, centered in y.
+        
+        Args:
+            length (float): The length of the shelve (x direction).
+            width (float): The width of the shelve (y direction)
+            height (float): The height of the shelve.
+            layers (int): The number of layers of the shelve.
+            x_offset (float, optional): The offset in the x direction.
+            lateral_friction (float or None, optional): Lateral friction. If None, use the default pybullet
+                value. Defaults to None.
+            spinning_friction (float or None, optional): Spinning friction. If None, use the default pybullet
+                value. Defaults to None.
+        """
+        rgba_color = np.array([0, 1, 0, 0.8])
+        specular_color = np.zeros(3)
+        
+        # Poles frame position
+        pole_position = []
+        for i in range(4):
+            pole_position.append([x_offset + (i%2) * length, width/2 * ( -1 if i < 2 else 1) , height/2])
+        # Layer frame position
+        layer_position = []
+        for i in range(layers):
+            layer_position.append([x_offset + length/2, 0.0, i*(height/(layers-1))])
+        # Create Visual Shape Id and Collision Shape Id
+        visualShapeId = self.physics_client.createVisualShapeArray(
+            shapeTypes=[self.physics_client.GEOM_CYLINDER]*4 + [self.physics_client.GEOM_BOX]*layers,
+            halfExtents=[[0, 0, 0]]*4 + [[length/2, width/2, 0.01]]*layers,
+            radii=[0.02]*4 + [0.0]*layers,
+            lengths=[height]*4 + [0]*layers,
+            visualFramePositions=pole_position + layer_position
+        )
+        collisionShapeId = self.physics_client.createCollisionShapeArray(
+            shapeTypes=[self.physics_client.GEOM_CYLINDER]*4 + [self.physics_client.GEOM_BOX]*layers,
+            halfExtents=[[0, 0, 0]]*4 + [[length/2, width/2, 0.01]]*layers,
+            radii=[0.02]*4 + [0.0]*layers,
+            lengths=[height]*4 + [0]*layers,
+            collisionFramePositions=pole_position + layer_position
+        )
+        # Create MultiBody
+        self._bodies_idx[body_name] = self.physics_client.createMultiBody(
+            baseMass=0.0,
+            baseVisualShapeIndex=visualShapeId,
+            baseCollisionShapeIndex=collisionShapeId,
+            basePosition=np.zeros(3),
+        )
+        self.physics_client.changeVisualShape(
+            self._bodies_idx[body_name],
+            -1,
+            rgbaColor=rgba_color,
+            specularColor=specular_color
+        )
+        if lateral_friction is not None:
+            self.set_lateral_friction(body=body_name, link=-1, lateral_friction=lateral_friction)
+        if spinning_friction is not None:
+            self.set_spinning_friction(body=body_name, link=-1, spinning_friction=spinning_friction)
+        
     def set_lateral_friction(self, body: str, link: int, lateral_friction: float) -> None:
         """Set the lateral friction of a link.
 
