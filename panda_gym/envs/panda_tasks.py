@@ -377,6 +377,14 @@ class PandaShelveEnv(RobotTaskEnv):
         #     reward = float(self.task.compute_reward(observation["achieved_goal"], self.task.get_goal(), info))
         reward = float(self.task.compute_reward(observation["achieved_goal"], self.task.get_goal(), info)) + 0.7 * collision_distance
         return observation, reward, terminated, truncated, info
+    
+    def setsim(self, joints: np.ndarray, obs:Dict[str, np.ndarray]) -> None:
+        # with self.sim.no_rendering():
+        # Setting Robot
+        self.robot.set_joint_angles(joints)
+        # Setting Task
+        self.sim.set_base_pose("target", obs["desired_goal"], np.array([0.0, 0.0, 0.0, 1.0]))
+        self.task.goal = obs["desired_goal"]
 
 class PandaSlideEnv(RobotTaskEnv):
     """Slide task wih Panda robot.

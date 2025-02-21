@@ -41,7 +41,8 @@ class PyBullet:
             if renderer == "OpenGL":
                 self.connection_mode = p.GUI
             elif renderer == "Tiny":
-                self.connection_mode = p.DIRECT
+                # self.connection_mode = p.DIRECT
+                self.connection_mode = None
             else:
                 raise ValueError("The 'renderer' argument is must be in {'Tiny', 'OpenGL'}")
         else:
@@ -49,11 +50,13 @@ class PyBullet:
         self.physics_client = bc.BulletClient(connection_mode=self.connection_mode, options=options)
         self.physics_client.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
         self.physics_client.configureDebugVisualizer(p.COV_ENABLE_MOUSE_PICKING, 0)
-
         self.n_substeps = n_substeps
         self.timestep = 1.0 / 500
         self.physics_client.setTimeStep(self.timestep)
         self.physics_client.resetSimulation()
+        
+        self.physics_client.setPhysicsEngineParameter(deterministicOverlappingPairs=1)
+
         self.physics_client.setAdditionalSearchPath(pybullet_data.getDataPath())
         self.physics_client.setGravity(0, 0, -9.81)
         self._bodies_idx = {}
@@ -321,6 +324,21 @@ class PyBullet:
             bodyUniqueId=self._bodies_idx[body], posObj=position, ornObj=orientation
         )
 
+    def set_base_velocity(self, body: str, pos_v: np.ndarray, ang_v: np.ndarray) -> None:
+        """Set the position of the body.
+
+        Args:
+            body (str): Body unique name.
+            pos_v (np.ndarray): The linear velocity, as (vx, vy, vz).
+            ang_v (np.ndarray): The angular velocity, as (wx, wy, wz).
+        """
+        # if len(orientation) == 3:
+        #     orientation = self.physics_client.getQuaternionFromEuler(orientation)
+        # Assume that angular velocity is in euler angle
+        self.physics_client.resetBaseVelocity(
+            objectUniqueId=self._bodies_idx[body], linearVelocity=pos_v, angularVelocity=ang_v
+        )
+
     def set_joint_angles(self, body: str, joints: np.ndarray, angles: np.ndarray) -> None:
         """Set the angles of the joints of the body.
 
@@ -332,16 +350,29 @@ class PyBullet:
         for joint, angle in zip(joints, angles):
             self.set_joint_angle(body=body, joint=joint, angle=angle)
 
-    def set_joint_angle(self, body: str, joint: int, angle: float) -> None:
+    def set_joint_angle(self, body: str, joint: int, angle: float, velocity: float = 0.0) -> None:
         """Set the angle of the joint of the body.
 
         Args:
             body (str): Body unique name.
             joint (int): Joint index in the body.
             angle (float): Target angle.
+            velocity (float): Target velocity.
         """
-        self.physics_client.resetJointState(bodyUniqueId=self._bodies_idx[body], jointIndex=joint, targetValue=angle)
+        self.physics_client.resetJointState(bodyUniqueId=self._bodies_idx[body], jointIndex=joint, targetValue=angle, targetVelocity=velocity)
 
+    def set_joint_angles_with_vel(self, body: str, joints: np.ndarray, angles: np.ndarray, velocities: np.ndarray) -> None:
+        """Set the angles of the joints of the body.
+
+        Args:
+            body (str): Body unique name.
+            joints (np.ndarray): List of joint indices, as a list of ints.
+            angles (np.ndarray): List of target angles, as a list of floats.
+            velocities (np.ndarray): List of target velocities, as a list of floats.
+        """
+        for joint, angle, velocity in zip(joints, angles, velocities):
+            self.set_joint_angle(body=body, joint=joint, angle=angle, velocity=velocity)
+        
     def control_joints(self, body: str, joints: np.ndarray, target_angles: np.ndarray, forces: np.ndarray) -> None:
         """Control the joints motor.
 
