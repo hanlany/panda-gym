@@ -124,6 +124,14 @@ class Panda(PyBulletRobot):
     def set_joint_neutral(self) -> None:
         """Set the robot to its neutral pose."""
         self.set_joint_angles(self.neutral_joint_values)
+    
+    def get_joint_angles(self) -> np.ndarray:
+        current_arm_joint_angles = np.array([self.get_joint_angle(joint=i) for i in range(7)])
+        return current_arm_joint_angles
+
+    def get_joint_velocities(self) -> np.ndarray:
+        current_arm_joint_velocities = np.array([self.get_joint_velocity(joint=i) for i in range(7)])
+        return current_arm_joint_velocities
 
     def get_fingers_width(self) -> float:
         """Get the distance between the fingers."""

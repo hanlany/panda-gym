@@ -463,6 +463,77 @@ class PyBullet:
             texture_uid = self.physics_client.loadTexture(texture_path)
             self.physics_client.changeVisualShape(self._bodies_idx[body_name], -1, textureUniqueId=texture_uid)
 
+    def create_tee(
+        self,
+        length: float = 0.1,
+        width: float = 0.08,
+        height: float = 0.02,
+        thickness: float = 0.03,
+        mass: float = 1.0,
+        body_name: str = "tee",
+        ghost: bool = False,
+        x_offset: float = 0.0,
+        lateral_friction: Optional[float] = None,
+        spinning_friction: Optional[float] = None,
+    ) -> None:
+        """ Create a T box.
+        
+        Args:
+            length (float): The length of the l part of the T (x direction).
+            width (float): The width the - part of the T (y direction)
+            height (float): The height of letter tee.
+            thickness (float): The thickness of the letter tee.
+            mass (float): The mass in kg.
+            ghost (bool, optional): Whether the body can collide. Defaults to False.
+            x_offset (float, optional): The offset in the x direction.
+            lateral_friction (float or None, optional): Lateral friction. If None, use the default pybullet
+                value. Defaults to None.
+            spinning_friction (float or None, optional): Spinning friction. If None, use the default pybullet
+                value. Defaults to None.
+        """
+        rgba_color = (np.array([0, 1, 0, 1]) if not ghost else np.array([0, 1, 0, 0.3]))
+        specular_color = np.zeros(3)
+        
+        # Horizontal bar position
+        hori_position = [[-thickness/2 , 0, height/2]]
+        # Vertical bar position
+        verti_position = [[length/2, 0, height/2]]
+
+        # Create Visual Shape Id and Collision Shape Id
+        visualShapeId = self.physics_client.createVisualShapeArray(
+            shapeTypes=[self.physics_client.GEOM_BOX]*2,
+            halfExtents=[[thickness/2, width/2, height/2], [length/2, thickness/2, height/2]],
+            visualFramePositions=hori_position + verti_position
+        )
+        if not ghost:
+            collisionShapeId = self.physics_client.createCollisionShapeArray(
+                shapeTypes=[self.physics_client.GEOM_BOX]*2,
+                halfExtents=[[thickness/2, width/2, height/2], [length/2, thickness/2, height/2]],
+                collisionFramePositions=hori_position + verti_position
+            )
+            bodies_mass = mass
+        else:
+            collisionShapeId = -1
+            bodies_mass = 0.0
+
+        # Create MultiBody
+        self._bodies_idx[body_name] = self.physics_client.createMultiBody(
+            baseMass=bodies_mass,
+            baseVisualShapeIndex=visualShapeId,
+            baseCollisionShapeIndex=collisionShapeId,
+            basePosition=np.zeros(3),
+        )
+        self.physics_client.changeVisualShape(
+            self._bodies_idx[body_name],
+            -1,
+            rgbaColor=rgba_color,
+            specularColor=specular_color
+        )
+        if lateral_friction is not None:
+            self.set_lateral_friction(body=body_name, link=-1, lateral_friction=lateral_friction)
+        if spinning_friction is not None:
+            self.set_spinning_friction(body=body_name, link=-1, spinning_friction=spinning_friction)
+        
     def create_cylinder(
         self,
         body_name: str,
@@ -719,7 +790,7 @@ class PyBullet:
             self.set_lateral_friction(body=body_name, link=-1, lateral_friction=lateral_friction)
         if spinning_friction is not None:
             self.set_spinning_friction(body=body_name, link=-1, spinning_friction=spinning_friction)
-        
+
     def set_lateral_friction(self, body: str, link: int, lateral_friction: float) -> None:
         """Set the lateral friction of a link.
 

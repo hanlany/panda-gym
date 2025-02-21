@@ -28,5 +28,31 @@ def angle_distance(a: np.ndarray, b: np.ndarray) -> np.ndarray:
         np.ndarray: The geodesic distance between the angles.
     """
     assert a.shape == b.shape
-    dist = 1 - np.inner(a, b) ** 2
+    if a.ndim == 1:
+        dist = 1 - np.inner(a, b) ** 2
+    else:
+        dist = 1 - np.einsum("ij,ij->i", a, b) ** 2
     return dist
+
+def euler_to_quaternion(euler: np.ndarray) -> np.ndarray:
+    """Convert euler angles to quaternion.
+
+    Args:
+        euler (np.ndarray): Euler angles.
+
+    Returns:
+        np.ndarray: Quaternion.
+    """
+    assert euler.shape == (3,)
+    roll, pitch, yaw = euler
+    cy = np.cos(yaw * 0.5)
+    sy = np.sin(yaw * 0.5)
+    cp = np.cos(pitch * 0.5)
+    sp = np.sin(pitch * 0.5)
+    cr = np.cos(roll * 0.5)
+    sr = np.sin(roll * 0.5)
+    w = cr * cp * cy + sr * sp * sy
+    x = sr * cp * cy - cr * sp * sy
+    y = cr * sp * cy + sr * cp * sy
+    z = cr * cp * sy - sr * sp * cy
+    return np.array([x, y, z, w])
