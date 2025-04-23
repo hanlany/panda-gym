@@ -206,6 +206,8 @@ class PandaPushTEnv(RobotTaskEnv):
         sim = PyBullet(render_mode=render_mode, renderer=renderer)
         
         robot = Panda(sim, block_gripper=True, base_position=np.array([-0.6, 0.0, 0.0]), control_type=control_type)
+        # Home config for reference
+        # robot.neutral_joint_values = np.array([0.00, 0.41, 0.00, -1.85, 0.00, 2.26, 0.79, 0.00, 0.00])
         task = PushT(sim, reward_type=reward_type, get_ee_position=robot.get_ee_position)
         for i in range(robot.sim.physics_client.getNumJoints(robot.sim._bodies_idx["panda"])):
             robot.sim.physics_client.changeVisualShape(

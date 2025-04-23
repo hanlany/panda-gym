@@ -35,6 +35,14 @@ class PyBullet:
         options = "--background_color_red={} --background_color_green={} --background_color_blue={}".format(
             *self.background_color
         )
+        
+        # Not working, resulting a "Not conneceted to physics server" error
+        # self.shared_memory_key = 1234
+        # options = "--background_color_red={} --background_color_green={} --background_color_blue={} --shared_memory_key={}".format(
+        #     *self.background_color,
+        #     self.shared_memory_key
+        # )
+
         if self.render_mode == "human":
             self.connection_mode = p.GUI
         elif self.render_mode == "rgb_array":
@@ -43,6 +51,7 @@ class PyBullet:
             elif renderer == "Tiny":
                 # self.connection_mode = p.DIRECT
                 self.connection_mode = None
+                # self.connection_mode = p.SHARED_MEMORY
             else:
                 raise ValueError("The 'renderer' argument is must be in {'Tiny', 'OpenGL'}")
         else:
